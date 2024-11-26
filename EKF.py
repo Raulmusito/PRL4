@@ -77,6 +77,10 @@ class EKF(GaussianFilter):
 
         # KF equations begin here
         # TODO: To be implemented by the student
+        self.xk_bar = self.f(xk_1, uk)
+        Ak = self.Jfx(xk_1)
+        Wk = self.Jfw(xk_1)
+        self.Pk_bar = Ak*Pk_1*Ak.T+Wk*Qk*Wk.T
 
         return self.xk_bar, self.Pk_bar
 

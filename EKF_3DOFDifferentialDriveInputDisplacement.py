@@ -58,6 +58,9 @@ class EKF_3DOFDifferentialDriveInputDisplacement(GFLocalization, DR_3DOFDifferen
         :return: uk,Qk
         """
         # TODO: To be completed by the student
+        uk, Qk = self.robot.ReadEncoders()  # get the input from the robot
+        
+
 
         return uk, Qk
 

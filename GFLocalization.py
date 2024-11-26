@@ -3,6 +3,7 @@ from GaussianFilter import GaussianFilter
 import matplotlib.pyplot as plt
 from GetEllipse import GetEllipse
 import numpy as np
+
 class GFLocalization(Localization,GaussianFilter):
     """
     Map-less localization using a Gaussian filter.
@@ -82,6 +83,20 @@ class GFLocalization(Localization,GaussianFilter):
         """
 
         # TODO: To be implemented by the student
+
+        uk, qk = self.GetInput()  # get the input from the robot
+        #QK = qk * compute the relation between the encoder covariance and the x,y displacement covariance
+        QK = qk
+        QK = np.ndarray[[0.12,  0,      0]
+                        [0,    .12,     0]
+                        [0,     0,   0.12]]
+        
+        xk_bar, Pk_bar = self.Prediction(uk, QK, xk_1, Pk_1)
+        zk, Rk, Hk, Vk = self.getmeasurements()
+
+        xk, pk = self.Update(zk, Rk, xk_bar, Pk_bar, Hk, Vk)
+
+        
 
         return xk, Pk
 

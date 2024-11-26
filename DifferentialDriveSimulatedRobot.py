@@ -4,6 +4,7 @@ from Pose import *
 import scipy
 from roboticstoolbox.mobile.Animations import *
 import numpy as np
+import argparse
 
 
 class DifferentialDriveSimulatedRobot(SimulatedRobot):
@@ -73,8 +74,9 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
 
         self.xy_feature_reading_frequency = 50  # frequency of XY feature readings
         self.xy_max_range = 50  # maximum XY range, used to simulate the field of view
+        self.xy_range_std = 0.25 # standard deviation of simulated ranges noise
 
-        self.yaw_reading_frequency = 10  # frequency of Yasw readings
+        self.yaw_reading_frequency = 1  # frequency of Yasw readings
         self.v_yaw_std = np.deg2rad(5)  # std deviation of simulated heading noise
 
     def fs(self, xsk_1, usk):  # input velocity motion model with velocity noise
@@ -109,7 +111,34 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
 
         # TODO: to be completed by the student
 
-        pass
+        wsk = np.random.multivariate_normal(np.zeros(3),self.Qsk,1).T  # acceleration noise calculated with the Qsk cov mat
+        
+        etask_1 = Pose3D(xsk_1[0:3]) # get the pose values from the last state
+        nusk_1  = np.array(xsk_1[3:6]) # get the velocity values from the last state
+
+        K = np.diag([1.0,1.0,1.0]) # gain matrix for the difference between prvious state vel and desired vel. without any correlation
+
+        vd = np.array([[usk[0][0]], # reshape of the desired velocity to match the 3x1 size requiered to do the difference with the previous el. 
+                       [0],
+                       [usk[1][0]]])
+        
+        
+        
+        # Build actual state vector [[current pose][current vel]]
+        self.xsk = np.vstack((etask_1.oplus(nusk_1*self.dt + (1/2)*(self.dt**2)*wsk), 
+                                    (nusk_1 + K@(vd - nusk_1)+wsk*self.dt)))
+
+        if self.k % self.visualizationInterval == 0:
+                self.PlotRobot()
+                self.xTraj.append(self.xsk[0, 0])
+                self.yTraj.append(self.xsk[1, 0])
+                self.trajectory.pop(0).remove()
+                self.trajectory = plt.plot(self.xTraj, self.yTraj, marker='.', color='orange', markersize=1)
+
+        self.k += 1
+ 
+        return self.xsk
+
 
     def ReadEncoders(self):
         """ Simulates the robot measurements of the left and right wheel encoders.
@@ -121,7 +150,33 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
 
         # TODO: to be completed by the student
 
-        pass
+        if self.k % self.encoder_reading_frequency == 0:
+            # Current velocities
+            v = self.xsk[3] # the linear velocity in xsk is with respect to the robot frame, so it has just 1 component
+            w = self.xsk[5] # angular velocity
+
+            # Robot Dimensions
+            l = self.wheelBase # distance between wheels
+            r = self.wheelRadius # Radius of a wheel
+            ppr = self.pulse_x_wheelTurns # number of ticks that the encoder register per each turn of a wheel
+
+            dt = self.dt
+            
+            # Compute individual wheel rotational speed
+            wl = (v - (l/2) * w) / r    # left wheel angular velocity   
+            wr = (v + (l/2) * w) / r    # right wheel angular velocity
+
+            # Compute pulses per wheel encoder, and noise
+            zsk = np.array([wl*dt*ppr/(2*np.pi),  
+                            wr*dt*ppr/(2*np.pi)])
+            
+            noise = np.random.multivariate_normal(np.zeros(2),self.Re,1).T # vector of noise of the size 2x1 with the noise for the left and right encoder
+            zsk = zsk + noise # add noise to each reading
+
+            # Covariance matrix
+            Rsk = self.Re
+
+            return zsk, Rsk
 
     def ReadCompass(self):
         """ Simulates the compass reading of the robot.
@@ -129,9 +184,48 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
         :return: yaw and the covariance of its noise *R_yaw*
         """
 
-        # TODO: to be completed by the student
+        if self.k % self.yaw_reading_frequency == 0: # provide readings at the predefined frequency
+            yaw = self.xsk[2] # get the orientation of the robot with respect to the world frame
+            
+            # Obtain yaw and compute noise
+            R_yaw = self.v_yaw_std**2 # variance
+            yaw += np.random.normal(0, self.v_yaw_std)
 
-        pass
+            return yaw, R_yaw
+
+    def ReadRanges(self):
+        """ Simulates reading the distances to the features in the environment.
+
+        return: a list of ranges measurements and the covariance of the noise of the readings 
+        """
+        ''' Note: You can simulate that the reading includes the id of the feature and the distance to it
+                  this will help you to match the readings with the map features and avoid data association problems
+        
+           Note: define a new class variable to keep the desired measurement covariance (set some meaningful value for it)
+        '''
+        
+        # Provide readings at the predefined frequency
+        if self.k % self.xy_feature_reading_frequency != 0:
+            return [], []
+        
+        readings = [] # empty list to store the readings
+        ranges_var = self.xy_range_std**2 # variance of the noise of the readings
+        robot_x = self.xsk[0][0] # get the x position of the robot
+        robot_y = self.xsk[1][0] # get the y position of the robot
+        
+        for i in range(len(self.M)):
+            # print('ReadRanges()>>> feature:',self.M[i])
+            feature_x = self.M[i][0][0] # get the x position of the feature
+            feature_y = self.M[i][1][0] # get the y position of the feature
+
+            # compute distance with noise
+            d = np.sqrt((feature_x - robot_x)**2 + (feature_y - robot_y)**2) # compute the distance between the robot and the feature
+            d += np.random.normal(0, self.xy_range_std) # add noise to the reading
+
+            if d < self.xy_max_range: # check if the reading is within the max range
+                readings.append((i,d)) # i is the id of the feature, d is the distance to the feature
+
+        return readings, ranges_var
 
     def PlotRobot(self):
         """ Updates the plot of the robot at the current pose """
@@ -140,3 +234,61 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
         plt.pause(0.0000001)
         return
 
+
+### TESTING
+
+if __name__ == "__main__":
+
+    # copy the map creation in the main.py code
+
+    # feature map. Position of 2 point features in the world frame.
+    M2D = [np.array([[-40, 5]]).T,
+            np.array([[-5, 40]]).T,
+            np.array([[-5, 25]]).T,
+            np.array([[-3, 50]]).T,
+            np.array([[-20, 3]]).T,
+            np.array([[40,-40]]).T]
+    xs0 = np.zeros((6,1))   # initial simulated robot pose
+    
+    # instance of robot
+    roberto = DifferentialDriveSimulatedRobot(xs0, M2D) # instantiate the simulated robot object
+    xsk_1 = np.zeros((6, 1))  # initial simulated robot pose
+
+    # parsing testing shape to perform trajectory
+    ## ex. run in terminal: >> python DifferentialDriveSimulatedRobot.py "circle"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("shape", type=str, help="The test shape type string")
+    args = parser.parse_args()
+
+    if args.shape == "circle":
+        # Circle
+        usk = np.array([[5],
+                        [0.2]])
+        for i in range(1000):
+            xsk = roberto.fs(xsk_1,usk)
+            xsk_1 = xsk
+        # pause for capture
+        usk = np.array([[0],
+                        [0.0]])
+        for i in range(1000):
+            xsk = roberto.fs(xsk_1,usk)
+            xsk_1 = xsk
+    elif args.shape == "8":
+        # Eight
+        for j in range(2):
+            usk = np.array([[5],
+                        [0.2]])
+            for i in range(314):
+                xsk_1 = roberto.fs(xsk_1,usk)
+
+            usk = np.array([[5],
+                            [-0.2]])
+            for i in range(314):
+                xsk_1 = roberto.fs(xsk_1,usk)
+        # pause for capture
+        usk = np.array([[0],
+                        [0.0]])
+        for i in range(1000):
+            xsk_1 = roberto.fs(xsk_1,usk)
+    else:
+        print("No circle nor 8 shape given")

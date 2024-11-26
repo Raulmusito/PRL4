@@ -109,7 +109,7 @@ class Pose(np.ndarray):
             J_{1\\boxplus}=\\frac{\\partial  ^Nx_B \\boxplus ^Bx_F}{\\partial ^Nx_B}
             :label: eq-J1boxplus
 
-        :param BxF: Feature object expressed in the B-Frame
+        :param BxF: Featur  e object expressed in the B-Frame
         :return: :math:`J_{1\\boxplus}` Jacobian of the feature compounding operation with respect to the robot pose (eq. :eq:`eq-J1boxplus`)
         """
         assert isinstance(BxF,f.Feature), "BxF is not a Feature"
@@ -192,6 +192,11 @@ class Pose3D(Pose):
         """
         # TODO: To be completed by the student
 
+        
+        AxC = Pose3D(np.array([[AxB[0][0] + BxC[0][0]*np.cos(AxB[2][0]) - BxC[1][0]*np.sin(AxB[2][0])],
+                               [AxB[1][0] + BxC[0][0]*np.sin(AxB[2][0]) + BxC[1][0]*np.cos(AxB[2][0])],
+                               [AxB[2][0] + BxC[2][0]]]))
+
         return AxC
 
     def J_1oplus(AxB, BxC):
@@ -253,6 +258,10 @@ class Pose3D(Pose):
         :returns: A-Frame pose expressed in B-Frame coordinates (eq. :eq:`eq-ominus3dof`)
         """
         # TODO: To be completed by the student
+
+        BxA = Pose3D(np.array([[-AxB[0][0]*np.cos(AxB[2][0]) - AxB[1][0]*np.sin(AxB[2][0])],
+                        [AxB[0][0]*np.sin(AxB[2][0]) - AxB[1][0]*np.cos(AxB[2][0])],
+                        [-AxB[2][0]]]))
 
         return BxA
 

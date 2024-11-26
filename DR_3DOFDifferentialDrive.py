@@ -2,6 +2,7 @@ from Localization import *
 import numpy as np
 from DifferentialDriveSimulatedRobot import *
 
+
 class DR_3DOFDifferentialDrive(Localization):
     """
     Dead Reckoning Localization for a Differential Drive Mobile Robot.
@@ -29,21 +30,71 @@ class DR_3DOFDifferentialDrive(Localization):
         :parameter uk: input vector (:math:`u_k=[u_{k}~v_{k}~w_{k}~r_{k}]^T`)
         :return xk: current robot pose estimate (:math:`x_k=[x_{k}~y_{k}~\psi_{k}]^T`)
         """
+         
+        # Store previous state and input for Logging purposes
+        self.etak_1 = xk_1  # store previous state
+        self.uk = uk  # store input
 
         # TODO: to be completed by the student
 
-        pass
+        # Variables obtention
+        R =  self.robot.wheelRadius 
+        ppr = self.robot.pulse_x_wheelTurns # number of ticks that the encoder register per each turn of a wheel
+        l = self.wheelBase # distance between wheels
+        
+        # Store previous pose
+        x_k_1 = xk_1[0][0] # x position with respect to the world frame
+        y_k_1 = xk_1[1][0] # y position with respect to the world frame
+        theta_k_1 = xk_1[2][0] # theta with respect to the world frame (robot orientation)
+        
+        # Retrieve pulses from encoders
+        pulses, _ = self.GetInput()
+        pl, pr = pulses  # pulses of left and right wheel
+        pl = pl[0] # get the values
+        pr = pr[0]
+
+        # Compute individual wheel displacements
+        dl = 2 * np.pi * R * pl / ppr  # Left displacement         
+        dr = 2 * np.pi * R * pr / ppr  # Right displacemente 
+            
+        # Compute robot displacemente
+        d = (dl + dr)/2
+
+        # Compute change in theta for the actual iteration
+        d_theta_k = (dr - dl) / l
+
+        # Add the change of theta
+        theta_k = theta_k_1 + d_theta_k
+        
+        # Compute the new x and y positions with respect to the world frame
+        x_k = x_k_1 + (d*np.cos(theta_k)) 
+        y_k = y_k_1 + (d*np.sin(theta_k))
+        
+        # Define the new updated pose vector
+        new_pose = np.array([[x_k],
+                             [y_k],
+                             [theta_k]])
+        
+        #new_pose = np.array([[self.robot.xsk[0]], [self.robot.xsk[1]],[self.robot.xsk[2]]])
+
+        return new_pose
 
     def GetInput(self):
+
         """
         Get the input for the motion model. In this case, the input is the readings from both wheel encoders.
 
         :return: uk:  input vector (:math:`u_k=[n_L~n_R]^T`)
         """
-
+    
         # TODO: to be completed by the student
+        
+        # retreive pulses from robot encoders
+        encoders_reading = self.robot.ReadEncoders()
+        pulses, covariance = encoders_reading
 
-        pass
+        return (pulses, covariance)
+
 
 if __name__ == "__main__":
 
