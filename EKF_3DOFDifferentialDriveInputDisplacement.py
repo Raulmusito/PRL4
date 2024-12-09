@@ -2,6 +2,8 @@ from GFLocalization import *
 from EKF import *
 from DR_3DOFDifferentialDrive import *
 from DifferentialDriveSimulatedRobot import *
+from Feature import *
+from Pose import Pose3D
 
 class EKF_3DOFDifferentialDriveInputDisplacement(GFLocalization, DR_3DOFDifferentialDrive, EKF):
     """
@@ -34,22 +36,26 @@ class EKF_3DOFDifferentialDriveInputDisplacement(GFLocalization, DR_3DOFDifferen
 
     def f(self, xk_1, uk):
         # TODO: To be completed by the student
+        nk_1 = Pose3D(xk_1)
+        xk_bar = nk_1.oplus(uk) # predicted state vector
 
         return xk_bar
 
     def Jfx(self, xk_1):
         # TODO: To be completed by the student
-
+        xk_1 = Pose3D(xk_1)
+        J = xk_1.J_1oplus(self.uk)
         return J
 
     def Jfw(self, xk_1):
         # TODO: To be completed by the student
-
+        xk_1 = Pose3D(xk_1)
+        J = xk_1.J_2oplus()
         return J
 
     def h(self, xk):  #:hm(self, xk):
         # TODO: To be completed by the student
-
+        h = np.array([0,0,1])@xk
         return h  # return the expected observations
 
     def GetInput(self):
@@ -58,9 +64,18 @@ class EKF_3DOFDifferentialDriveInputDisplacement(GFLocalization, DR_3DOFDifferen
         :return: uk,Qk
         """
         # TODO: To be completed by the student
-        uk, Qk = self.robot.ReadEncoders()  # get the input from the robot
-        
+        encoders, Qk = self.robot.ReadEncoders()  # get the input from the robot
 
+
+        #hacerlo matricial
+        disp_x_T = np.pi*self.robot.wheelRadius/(self.robot.pulse_x_wheelTurns)
+        disp_theta_T = 2*np.pi*self.robot.wheelRadius/(self.robot.wheelBase*self.robot.pulse_x_wheelTurns)
+
+        A = np.array([[disp_x_T    ,      disp_x_T],
+                      [     0      ,         0    ],
+                      [-disp_theta_T, disp_theta_T]])
+        uk = A.dot(encoders)
+        Qk = A @ Qk @ A.T
 
         return uk, Qk
 
@@ -68,8 +83,16 @@ class EKF_3DOFDifferentialDriveInputDisplacement(GFLocalization, DR_3DOFDifferen
         """
 
         :return: zk, Rk, Hk, Vk
+        zk = mean of the compass
+        Rk = covariance of the compass
+        Hk = Jacobian of the observation model with respect to the state vector
+        Vk = Jacobian of the observation model with respect to the noise vector
         """
         # TODO: To be completed by the student
+
+        zk, Rk = self.robot.ReadCompass()  # get the measurements from the robot
+        Hk = np.array([[0, 0, 1]])
+        Vk = np.eye(3)
 
         return zk, Rk, Hk, Vk
 

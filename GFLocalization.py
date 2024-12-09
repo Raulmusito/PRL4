@@ -84,21 +84,19 @@ class GFLocalization(Localization,GaussianFilter):
 
         # TODO: To be implemented by the student
 
-        uk, qk = self.GetInput()  # get the input from the robot
+        uk, QK = self.GetInput()  # get the input from the robot
         #QK = qk * compute the relation between the encoder covariance and the x,y displacement covariance
-        QK = qk
-        QK = np.ndarray[[0.12,  0,      0]
-                        [0,    .12,     0]
-                        [0,     0,   0.12]]
         
         xk_bar, Pk_bar = self.Prediction(uk, QK, xk_1, Pk_1)
-        zk, Rk, Hk, Vk = self.getmeasurements()
+        self.Log(self.robot.xsk, xk_bar, Pk_bar, xk_bar, None)
+        self.PlotRobotUncertainty(xk_bar, Pk_bar)
+        zk, Rk, Hk, Vk = self.GetMeasurements()
 
         xk, pk = self.Update(zk, Rk, xk_bar, Pk_bar, Hk, Vk)
 
         
-
-        return xk, Pk
+        return xk_bar, Pk_bar
+        #return xk, Pk
 
     def LocalizationLoop(self, x0, P0, usk):
         """
@@ -125,6 +123,11 @@ class GFLocalization(Localization,GaussianFilter):
         plt.show()
 
     def Log(self, xsk, xk, Pk, xk_bar, zk):
+        # xsk comes from the robot
+        # xk is the estimated state after the update
+        # pk is the covariance after the update
+        # xk_bar is the estimated state after the prediction
+        # zk is the observation
 
         xk_dim = len(xk_bar)
         xk_bar_dim = len(xk_bar)

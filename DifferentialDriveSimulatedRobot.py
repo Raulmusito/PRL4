@@ -5,6 +5,7 @@ import scipy
 from roboticstoolbox.mobile.Animations import *
 import numpy as np
 import argparse
+import copy
 
 
 class DifferentialDriveSimulatedRobot(SimulatedRobot):
@@ -78,6 +79,8 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
 
         self.yaw_reading_frequency = 1  # frequency of Yasw readings
         self.v_yaw_std = np.deg2rad(5)  # std deviation of simulated heading noise
+        self.saved_yaw = 0, 0
+        self.flag = True
 
     def fs(self, xsk_1, usk):  # input velocity motion model with velocity noise
         """ Motion model used to simulate the robot motion. Computes the current robot state :math:`x_k` given the previous robot state :math:`x_{k-1}` and the input :math:`u_k`:
@@ -183,15 +186,19 @@ class DifferentialDriveSimulatedRobot(SimulatedRobot):
 
         :return: yaw and the covariance of its noise *R_yaw*
         """
-
-        if self.k % self.yaw_reading_frequency == 0: # provide readings at the predefined frequency
-            yaw = self.xsk[2] # get the orientation of the robot with respect to the world frame
+        print ()
+        if self.k % self.yaw_reading_frequency == 0 or self.flag: # provide readings at the predefined frequency
+            yaw = copy.deepcopy(self.xsk[2])# get the orientation of the robot with respect to the world frame
             
             # Obtain yaw and compute noise
             R_yaw = self.v_yaw_std**2 # variance
             yaw += np.random.normal(0, self.v_yaw_std)
-
+            self.saved_yaw = yaw, R_yaw
+            print ("yaw saved")
+            self.flag = False
             return yaw, R_yaw
+        print ("returning saved yaw")
+        return self.saved_yaw
 
     def ReadRanges(self):
         """ Simulates reading the distances to the features in the environment.

@@ -218,6 +218,9 @@ class Pose3D(Pose):
         :returns: Evaluation of the :math:`J_{1\\oplus}` Jacobian of the pose compounding operation with respect to the first pose (eq. :eq:`eq-J1oplus3dof`)
         """
         # TODO: To be completed by the student
+        J1 = np.array([[1, 0, -BxC[0][0]*np.sin(AxB[2][0]) - BxC[1][0]*np.cos(AxB[2][0])],
+                       [0, 1, BxC[0][0]*np.cos(AxB[2][0]) - BxC[1][0]*np.sin(AxB[2][0])],
+                       [0, 0,                               1]])
 
         return J1
 
@@ -239,6 +242,10 @@ class Pose3D(Pose):
         :returns: Evaluation of the :math:`J_{2\\oplus}` Jacobian of the pose compounding operation with respect to the second pose (eq. :eq:`eq-J2oplus3dof`)
         """
         # TODO: To be completed by the student
+
+        J2 = np.array([[np.cos(AxB[2][0]), -np.sin(AxB[2][0]), 0],
+                       [np.sin(AxB[2][0]), np.cos(AxB[2][0]), 0],
+                       [0, 0, 1]])
 
         return J2
 
